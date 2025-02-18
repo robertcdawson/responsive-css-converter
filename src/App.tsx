@@ -8,6 +8,7 @@ import { formatCSS } from './utils/codeFormatter'
 import { extractCSSFromURL } from './utils/cssExtractor'
 import { StateField, StateEffect } from '@codemirror/state'
 import { SAMPLE_CSS } from './utils/sampleData'
+import { ConversionDiffDisplay } from './components/ConversionDiffDisplay'
 
 /**
  * Error boundary component to handle runtime errors gracefully
@@ -55,6 +56,7 @@ const diffField = StateField.define<DecorationSet>({
           add: [
             Decoration.mark({
               class: `cm-diff-${e.value.type}`,
+              attributes: { style: `background-color: ${e.value.type === 'add' ? 'rgba(0, 255, 0, 0.15)' : 'rgba(255, 0, 0, 0.15)'}; text-decoration: ${e.value.type === 'add' ? 'underline' : 'line-through'} wavy ${e.value.type === 'add' ? 'rgba(0, 255, 0, 0.4)' : 'rgba(255, 0, 0, 0.4)'}` }
             }).range(e.value.from, e.value.to),
           ],
         })
@@ -65,13 +67,10 @@ const diffField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f),
 })
 
-// Styles for diff highlighting
-const diffTheme = EditorView.baseTheme({
-  '.cm-diff-add': { backgroundColor: 'rgba(0, 255, 0, 0.2)', textDecoration: 'underline' },
-  '.cm-diff-remove': { backgroundColor: 'rgba(255, 0, 0, 0.2)', textDecoration: 'line-through' },
-})
+// Remove the separate theme since we're applying styles directly in the decoration
+const editorExtensions = [css(), diffField];
 
-function App() {
+export function App() {
   const [code, setCode] = useState('')
   const [settings, setSettings] = useState<ConversionSettings>({
     basePixelSize: 16,
@@ -83,69 +82,12 @@ function App() {
     convertedCode: '',
     errors: [],
   })
-  const [showDiff, setShowDiff] = useState(false)
   const [isPrettierLoading, setIsPrettierLoading] = useState(true)
-  const inputEditorRef = useRef<EditorView | null>(null)
-  const outputEditorRef = useRef<EditorView | null>(null)
-
-  // Track the last state before formatting/minifying
-  const [lastState, setLastState] = useState('')
-
   const [url, setUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
-  // Function to compute and apply diff decorations
-  const applyDiffDecorations = (view: EditorView | null, oldText: string, newText: string) => {
-    if (!view || !oldText || !newText) return
-
-    // First, clear any existing decorations
-    view.dispatch({ effects: clearDiffs.of(null) })
-
-    const oldLines = oldText.split('\n')
-    const newLines = newText.split('\n')
-    const effects: StateEffect<unknown>[] = []
-
-    let pos = 0
-    for (let i = 0; i < Math.max(oldLines.length, newLines.length); i++) {
-      const oldLine = oldLines[i] || ''
-      const newLine = newLines[i] || ''
-
-      if (oldLine !== newLine) {
-        // Find the specific changes within the line
-        const oldParts = oldLine.split(':')
-        const newParts = newLine.split(':')
-
-        if (oldParts.length === 2 && newParts.length === 2) {
-          const oldValue = oldParts[1].trim()
-          const newValue = newParts[1].trim()
-
-          if (oldValue !== newValue) {
-            // Calculate the position of the value in the line
-            const valueStartPos = pos + newLine.indexOf(newValue)
-            const valueEndPos = valueStartPos + newValue.length
-
-            effects.push(addDiff.of({
-              from: valueStartPos,
-              to: valueEndPos,
-              type: 'add'
-            }))
-          }
-        } else {
-          // If we can't split the line (not a property:value pair), highlight the whole line
-          effects.push(addDiff.of({
-            from: pos,
-            to: pos + newLine.length,
-            type: oldLine ? 'add' : 'remove'
-          }))
-        }
-      }
-      pos += newLine.length + 1 // +1 for newline
-    }
-
-    if (effects.length > 0) {
-      view.dispatch({ effects })
-    }
-  }
+  const inputEditorRef = useRef<EditorView | null>(null)
+  const outputEditorRef = useRef<EditorView | null>(null)
 
   // Initialize Prettier
   useEffect(() => {
@@ -177,23 +119,82 @@ function App() {
     loadPrettier()
   }, [])
 
-  // Effect to handle diff highlighting
-  useEffect(() => {
-    if (showDiff) {
-      if (code) {
-        applyDiffDecorations(inputEditorRef.current, lastState, code)
-      }
-      if (result.convertedCode) {
-        applyDiffDecorations(outputEditorRef.current, lastState, result.convertedCode)
-      }
-    }
-  }, [showDiff, lastState, result.convertedCode, code])
-
   const handleConvert = async () => {
-    setLastState(code);
     const conversionResult = convertCSS(code, settings);
+
+    // First update the result state
     setResult(conversionResult);
-    setShowDiff(true);
+
+    // Wait for a microtask to ensure the editor content is updated
+    await Promise.resolve();
+
+    // Apply diff highlighting
+    if (inputEditorRef.current && outputEditorRef.current) {
+      // Clear existing decorations
+      inputEditorRef.current.dispatch({
+        effects: clearDiffs.of(null)
+      });
+      outputEditorRef.current.dispatch({
+        effects: clearDiffs.of(null)
+      });
+
+      // Add new decorations for each diff
+      conversionResult.stats?.diffs.forEach(diff => {
+        // Find the actual line in input editor
+        const inputLines = code.split('\n');
+        const outputLines = conversionResult.convertedCode.split('\n');
+
+        // Search for the property in nearby lines (handle formatting differences)
+        for (let i = Math.max(0, diff.line - 2); i <= Math.min(inputLines.length - 1, diff.line + 2); i++) {
+          const inputLine = inputLines[i];
+          if (inputLine && inputLine.includes(diff.property || '') && inputLine.includes(diff.original)) {
+            const propertyStart = inputLine.indexOf(diff.property || '');
+            const originalStart = inputLine.indexOf(diff.original, propertyStart);
+            if (originalStart !== -1) {
+              const inputLineStart = inputLines.slice(0, i).join('\n').length + (i > 0 ? 1 : 0);
+              const inputFrom = inputLineStart + originalStart;
+              const inputTo = inputFrom + diff.original.length;
+
+              // Verify position is within bounds
+              if (inputEditorRef.current) {
+                const inputDocLength = inputEditorRef.current.state.doc.length;
+                if (inputFrom >= 0 && inputTo <= inputDocLength) {
+                  inputEditorRef.current.dispatch({
+                    effects: addDiff.of({ from: inputFrom, to: inputTo, type: 'remove' })
+                  });
+                }
+              }
+              break;
+            }
+          }
+        }
+
+        // Search for the converted value in output editor
+        for (let i = Math.max(0, diff.line - 2); i <= Math.min(outputLines.length - 1, diff.line + 2); i++) {
+          const outputLine = outputLines[i];
+          if (outputLine && outputLine.includes(diff.property || '') && outputLine.includes(diff.converted)) {
+            const propertyStart = outputLine.indexOf(diff.property || '');
+            const convertedStart = outputLine.indexOf(diff.converted, propertyStart);
+            if (convertedStart !== -1) {
+              const outputLineStart = outputLines.slice(0, i).join('\n').length + (i > 0 ? 1 : 0);
+              const outputFrom = outputLineStart + convertedStart;
+              const outputTo = outputFrom + diff.converted.length;
+
+              // Verify position is within bounds
+              if (outputEditorRef.current) {
+                const outputDocLength = outputEditorRef.current.state.doc.length;
+                if (outputFrom >= 0 && outputTo <= outputDocLength) {
+                  outputEditorRef.current.dispatch({
+                    effects: addDiff.of({ from: outputFrom, to: outputTo, type: 'add' })
+                  });
+                }
+              }
+              break;
+            }
+          }
+        }
+      });
+    }
   };
 
   const handleFormatInput = async () => {
@@ -259,8 +260,6 @@ function App() {
   const handleLoadDemo = () => {
     try {
       setCode(SAMPLE_CSS);
-      setLastState(SAMPLE_CSS);
-      setShowDiff(false);
     } catch (error) {
       trackError(error as Error, 'handleLoadDemo');
     }
@@ -379,11 +378,19 @@ function App() {
                     id="precision"
                     type="number"
                     min="0"
-                    max="4"
+                    max="6"
+                    step="1"
                     value={settings.precision}
-                    onChange={(e) =>
-                      setSettings({ ...settings, precision: Number(e.target.value) })
-                    }
+                    onChange={(e) => {
+                      const value = Math.min(6, Math.max(0, Math.floor(Number(e.target.value))));
+                      setSettings({ ...settings, precision: value });
+                    }}
+                    onBlur={(e) => {
+                      // Ensure empty input defaults to 0
+                      if (e.target.value === '') {
+                        setSettings({ ...settings, precision: 0 });
+                      }
+                    }}
                     className="w-full rounded-md border border-input bg-background px-3 py-2"
                   />
                 </div>
@@ -405,12 +412,13 @@ function App() {
                   <CodeMirror
                     value={code}
                     height="400px"
-                    extensions={[css(), diffTheme, diffField]}
-                    onChange={(value, viewUpdate) => {
+                    extensions={editorExtensions}
+                    onChange={(value) => {
                       setCode(value)
-                      setShowDiff(false)
-                      if (viewUpdate.view) {
-                        inputEditorRef.current = viewUpdate.view
+                    }}
+                    ref={(instance) => {
+                      if (instance?.view) {
+                        inputEditorRef.current = instance.view;
                       }
                     }}
                     theme="dark"
@@ -447,35 +455,25 @@ function App() {
                   >
                     Copy
                   </button>
-                  {showDiff && (
-                    <>
-                      <div className="mx-2 h-4 w-px bg-border" aria-hidden="true" />
-                      <button
-                        onClick={() => setShowDiff(false)}
-                        className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
-                        title="Hide diff highlighting"
-                      >
-                        Hide Diff
-                      </button>
-                    </>
-                  )}
                 </div>
               </div>
               <div className="rounded-md border">
                 <CodeMirror
                   value={result.convertedCode}
                   height="400px"
-                  extensions={[css(), diffTheme, diffField]}
+                  extensions={editorExtensions}
                   readOnly
                   theme="dark"
                   className="overflow-hidden rounded-md"
-                  onUpdate={(viewUpdate) => {
-                    if (viewUpdate.view) {
-                      outputEditorRef.current = viewUpdate.view
+                  ref={(instance) => {
+                    if (instance?.view) {
+                      outputEditorRef.current = instance.view;
                     }
                   }}
                 />
               </div>
+
+              <ConversionDiffDisplay stats={result.stats} />
 
               {result.errors.length > 0 && (
                 <div className="rounded-md bg-destructive/10 p-4">
