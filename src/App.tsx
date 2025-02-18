@@ -4,10 +4,9 @@ import { css } from '@codemirror/lang-css'
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view'
 import { ConversionSettings, ConversionResult } from './types'
 import { convertCSS } from './utils/converter'
-import { formatCSS, minifyCSS } from './utils/codeFormatter'
+import { formatCSS } from './utils/codeFormatter'
 import { extractCSSFromURL } from './utils/cssExtractor'
 import { StateField, StateEffect } from '@codemirror/state'
-import { debounce } from 'lodash'
 import { SAMPLE_CSS } from './utils/sampleData'
 
 /**
@@ -86,7 +85,6 @@ function App() {
   })
   const [showDiff, setShowDiff] = useState(false)
   const [isPrettierLoading, setIsPrettierLoading] = useState(true)
-  const [isFormatting, setIsFormatting] = useState(false)
   const inputEditorRef = useRef<EditorView | null>(null)
   const outputEditorRef = useRef<EditorView | null>(null)
 
@@ -95,21 +93,6 @@ function App() {
 
   const [url, setUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-
-  // Debounced conversion function
-  const debouncedConvert = useRef(
-    debounce((code: string, settings: ConversionSettings) => {
-      const result = convertCSS(code, settings)
-      setResult(result)
-    }, 300)
-  ).current
-
-  // Effect to handle automatic conversion
-  useEffect(() => {
-    if (code) {
-      debouncedConvert(code, settings)
-    }
-  }, [code, settings, debouncedConvert])
 
   // Function to compute and apply diff decorations
   const applyDiffDecorations = (view: EditorView | null, oldText: string, newText: string) => {
@@ -206,74 +189,57 @@ function App() {
     }
   }, [showDiff, lastState, result.convertedCode, code])
 
-  const handleConvert = () => {
-    setLastState(code)
-    const conversionResult = convertCSS(code, settings)
-    setResult(conversionResult)
-    setShowDiff(true)
-  }
+  const handleConvert = async () => {
+    setLastState(code);
+    const conversionResult = convertCSS(code, settings);
+    setResult(conversionResult);
+    setShowDiff(true);
+  };
 
-  const handleFormat = async () => {
-    if (isPrettierLoading) return
-
-    setIsFormatting(true)
+  const handleFormatInput = async () => {
+    if (isPrettierLoading) return;
 
     try {
-      const formattingResult = await formatCSS(code)
-      // First update the code
-      setCode(formattingResult.formattedCode)
+      const formattingResult = await formatCSS(code);
+      if (formattingResult.errors.length === 0) {
+        setCode(formattingResult.formattedCode);
+      } else {
+        setResult(prev => ({
+          ...prev,
+          errors: [...prev.errors, ...formattingResult.errors],
+        }));
+      }
+    } catch (error) {
       setResult(prev => ({
         ...prev,
-        errors: formattingResult.errors,
-      }))
-      // Then set up diff highlighting with the formatted code as the base
-      setLastState(formattingResult.formattedCode)
-      setShowDiff(false)
-    } finally {
-      setIsFormatting(false)
+        errors: [...prev.errors, `Error formatting CSS: ${error instanceof Error ? error.message : String(error)}`],
+      }));
     }
-  }
+  };
 
-  const handleMinify = () => {
-    setLastState(code)
-    const minificationResult = minifyCSS(code)
-    setCode(minificationResult.formattedCode)
-    setResult(prev => ({
-      ...prev,
-      errors: minificationResult.errors,
-    }))
-    setShowDiff(true)
-  }
-
-  const handleOutputFormat = async () => {
-    if (isPrettierLoading) return
-
-    setIsFormatting(true)
-    setLastState(result.convertedCode)
+  const handleFormatOutput = async () => {
+    if (isPrettierLoading || !result.convertedCode) return;
 
     try {
-      const formattingResult = await formatCSS(result.convertedCode)
+      const formattingResult = await formatCSS(result.convertedCode);
+      if (formattingResult.errors.length === 0) {
+        setResult(prev => ({
+          ...prev,
+          convertedCode: formattingResult.formattedCode
+        }));
+      } else {
+        setResult(prev => ({
+          ...prev,
+          errors: [...prev.errors, ...formattingResult.errors],
+        }));
+      }
+    } catch (error) {
       setResult(prev => ({
         ...prev,
-        convertedCode: formattingResult.formattedCode,
-        errors: formattingResult.errors,
-      }))
-      setShowDiff(true)
-    } finally {
-      setIsFormatting(false)
+        errors: [...prev.errors, `Error formatting CSS: ${error instanceof Error ? error.message : String(error)}`],
+      }));
     }
-  }
-
-  const handleOutputMinify = () => {
-    setLastState(result.convertedCode)
-    const minificationResult = minifyCSS(result.convertedCode)
-    setResult(prev => ({
-      ...prev,
-      convertedCode: minificationResult.formattedCode,
-      errors: minificationResult.errors,
-    }))
-    setShowDiff(true)
-  }
+  };
 
   const handleCopy = async () => {
     try {
@@ -426,24 +392,14 @@ function App() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium">Input CSS</label>
-                  <div className="flex items-center">
-                    <button
-                      onClick={handleFormat}
-                      disabled={isPrettierLoading || isFormatting}
-                      className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-                      title={isPrettierLoading ? "Loading formatter..." : "Format CSS code"}
-                    >
-                      {isFormatting ? 'Formatting...' : 'Format'}
-                    </button>
-                    <div className="mx-2 h-4 w-px bg-border" aria-hidden="true" />
-                    <button
-                      onClick={handleMinify}
-                      className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
-                      title="Minify CSS code"
-                    >
-                      Minify
-                    </button>
-                  </div>
+                  <button
+                    onClick={handleFormatInput}
+                    className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
+                    title="Format input code"
+                    disabled={isPrettierLoading}
+                  >
+                    Format
+                  </button>
                 </div>
                 <div className="rounded-md border">
                   <CodeMirror
@@ -476,20 +432,12 @@ function App() {
                 <label className="text-sm font-medium">Output CSS</label>
                 <div className="flex items-center">
                   <button
-                    onClick={handleOutputFormat}
-                    disabled={isPrettierLoading || isFormatting}
-                    className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-                    title={isPrettierLoading ? "Loading formatter..." : "Format converted CSS"}
-                  >
-                    {isFormatting ? 'Formatting...' : 'Format'}
-                  </button>
-                  <div className="mx-2 h-4 w-px bg-border" aria-hidden="true" />
-                  <button
-                    onClick={handleOutputMinify}
+                    onClick={handleFormatOutput}
                     className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
-                    title="Minify converted CSS"
+                    title="Format output code"
+                    disabled={isPrettierLoading || !result.convertedCode}
                   >
-                    Minify
+                    Format
                   </button>
                   <div className="mx-2 h-4 w-px bg-border" aria-hidden="true" />
                   <button
