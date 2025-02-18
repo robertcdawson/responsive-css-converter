@@ -5,6 +5,7 @@ import { EditorView, Decoration, DecorationSet } from '@codemirror/view'
 import { ConversionSettings, ConversionResult } from './types'
 import { convertCSS } from './utils/converter'
 import { formatCSS, minifyCSS } from './utils/codeFormatter'
+import { extractCSSFromURL } from './utils/cssExtractor'
 import { StateField, StateEffect } from '@codemirror/state'
 
 // Custom effect for updating diff decorations
@@ -63,6 +64,9 @@ function App() {
 
   // Track the last state before formatting/minifying
   const [lastState, setLastState] = useState('')
+
+  const [url, setUrl] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   // Function to compute and apply diff decorations
   const applyDiffDecorations = (view: EditorView | null, oldText: string, newText: string) => {
@@ -236,6 +240,24 @@ function App() {
     }
   }
 
+  const handleURLExtract = async () => {
+    if (!url) return;
+
+    setIsLoading(true);
+    try {
+      const extractionResult = await extractCSSFromURL(url);
+      if (extractionResult.errors.length > 0) {
+        setResult(extractionResult);
+      } else {
+        setCode(extractionResult.originalCode);
+        setLastState(extractionResult.originalCode);
+        setShowDiff(false);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="mx-auto max-w-7xl">
@@ -248,6 +270,22 @@ function App() {
 
         <div className="grid gap-8 md:grid-cols-2">
           <div className="space-y-4">
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                placeholder="Enter website URL to extract CSS"
+                className="flex-1 px-3 py-2 border rounded-md text-foreground bg-background"
+              />
+              <button
+                onClick={handleURLExtract}
+                disabled={isLoading || !url}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-md disabled:opacity-50"
+              >
+                {isLoading ? 'Extracting...' : 'Extract CSS'}
+              </button>
+            </div>
             <div className="flex items-center gap-4">
               <div className="flex-1 space-y-2">
                 <label htmlFor="baseSize" className="text-sm font-medium">
