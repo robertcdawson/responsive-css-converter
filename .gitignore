@@ -7,6 +7,12 @@
 # Testing
 /coverage
 /server/coverage
+/test-results/
+/playwright-report/
+/e2e-results/
+/playwright/.cache/
+/jest-coverage/
+*.test.js.snap
 
 # Production
 /build
@@ -51,3 +57,10 @@ out/
 
 # System Files
 Thumbs.db
+
+# Test artifacts
+*.log
+/reports
+/screenshots
+/videos
+/traces

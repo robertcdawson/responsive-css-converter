@@ -1,5 +1,14 @@
 import { ConversionResult } from '../types';
 
+/**
+ * Extracts CSS from a given URL by making a request to the backend API.
+ * @param url - The URL of the webpage to extract CSS from
+ * @returns Promise resolving to a ConversionResult object containing:
+ *          - originalCode: The extracted CSS code
+ *          - convertedCode: Empty string (to be filled by converter)
+ *          - errors: Array of any errors encountered during extraction
+ * @throws Will return a ConversionResult with error details if extraction fails
+ */
 export const extractCSSFromURL = async (url: string): Promise<ConversionResult> => {
   try {
     // Make request to backend endpoint

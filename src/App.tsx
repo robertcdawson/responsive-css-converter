@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Component } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
 import { css } from '@codemirror/lang-css'
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view'
@@ -7,6 +7,34 @@ import { convertCSS } from './utils/converter'
 import { formatCSS, minifyCSS } from './utils/codeFormatter'
 import { extractCSSFromURL } from './utils/cssExtractor'
 import { StateField, StateEffect } from '@codemirror/state'
+import { debounce } from 'lodash'
+import { SAMPLE_CSS } from './utils/sampleData'
+
+/**
+ * Error boundary component to handle runtime errors gracefully
+ */
+class ErrorBoundary extends Component<{ children: React.ReactNode }, { hasError: boolean }> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="error-boundary">
+          <h2>Something went wrong.</h2>
+          <button onClick={() => this.setState({ hasError: false })}>Try again</button>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 // Custom effect for updating diff decorations
 const addDiff = StateEffect.define<{ from: number; to: number; type: 'add' | 'remove' }>()
@@ -67,6 +95,21 @@ function App() {
 
   const [url, setUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+
+  // Debounced conversion function
+  const debouncedConvert = useRef(
+    debounce((code: string, settings: ConversionSettings) => {
+      const result = convertCSS(code, settings)
+      setResult(result)
+    }, 300)
+  ).current
+
+  // Effect to handle automatic conversion
+  useEffect(() => {
+    if (code) {
+      debouncedConvert(code, settings)
+    }
+  }, [code, settings, debouncedConvert])
 
   // Function to compute and apply diff decorations
   const applyDiffDecorations = (view: EditorView | null, oldText: string, newText: string) => {
@@ -240,227 +283,267 @@ function App() {
     }
   }
 
+  // Error tracking function
+  const trackError = (error: Error, context: string) => {
+    console.error(`Error in ${context}:`, error);
+    // In a production app, you would send this to your error tracking service
+    // Example: Sentry.captureException(error, { extra: { context } });
+  };
+
+  const handleLoadDemo = () => {
+    try {
+      setCode(SAMPLE_CSS);
+      setLastState(SAMPLE_CSS);
+      setShowDiff(false);
+    } catch (error) {
+      trackError(error as Error, 'handleLoadDemo');
+    }
+  };
+
   const handleURLExtract = async () => {
-    if (!url) return;
+    if (!isValidURL(url)) {
+      alert('Please enter a valid URL');
+      return;
+    }
 
     setIsLoading(true);
     try {
-      const extractionResult = await extractCSSFromURL(url);
-      if (extractionResult.errors.length > 0) {
-        setResult(extractionResult);
+      const result = await extractCSSFromURL(url);
+      if (result.errors.length > 0) {
+        alert(result.errors.join('\n'));
       } else {
-        setCode(extractionResult.originalCode);
-        setLastState(extractionResult.originalCode);
-        setShowDiff(false);
+        setCode(result.originalCode);
       }
+    } catch (error) {
+      trackError(error as Error, 'handleURLExtract');
+      alert('Failed to extract CSS from URL');
     } finally {
       setIsLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="mx-auto max-w-7xl">
-        <header className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Responsive CSS Converter</h1>
-          <p className="mt-2 text-muted-foreground">
-            Convert pixel values to responsive units
-          </p>
-        </header>
+  // URL validation
+  const isValidURL = (url: string) => {
+    try {
+      new URL(url)
+      return true
+    } catch {
+      return false
+    }
+  }
 
-        <div className="grid gap-8 md:grid-cols-2">
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <input
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="Enter website URL to extract CSS"
-                className="flex-1 px-3 py-2 border rounded-md text-foreground bg-background"
-              />
+  return (
+    <ErrorBoundary>
+      <div className="min-h-screen bg-background p-4 md:p-8">
+        <div className="mx-auto max-w-7xl">
+          <header className="mb-8">
+            <h1 className="text-3xl font-bold text-foreground">Responsive CSS Converter</h1>
+            <p className="mt-2 text-muted-foreground">
+              Convert pixel values to responsive units
+            </p>
+          </header>
+
+          <div className="grid gap-8 md:grid-cols-2">
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="Enter website URL to extract CSS"
+                  className="flex-1 px-3 py-2 border rounded-md text-foreground bg-background"
+                />
+                <button
+                  onClick={handleURLExtract}
+                  disabled={isLoading || !url}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md disabled:opacity-50"
+                >
+                  {isLoading ? 'Extracting...' : 'Extract CSS'}
+                </button>
+                <button
+                  onClick={handleLoadDemo}
+                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90"
+                  title="Load sample CSS code"
+                >
+                  Demo
+                </button>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex-1 space-y-2">
+                  <label htmlFor="baseSize" className="text-sm font-medium">
+                    Base Pixel Size
+                  </label>
+                  <input
+                    id="baseSize"
+                    type="number"
+                    value={settings.basePixelSize}
+                    onChange={(e) =>
+                      setSettings({ ...settings, basePixelSize: Number(e.target.value) })
+                    }
+                    className="w-full rounded-md border border-input bg-background px-3 py-2"
+                  />
+                </div>
+                <div className="flex-1 space-y-2">
+                  <label htmlFor="targetUnit" className="text-sm font-medium">
+                    Target Unit
+                  </label>
+                  <select
+                    id="targetUnit"
+                    value={settings.targetUnit}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        targetUnit: e.target.value as ConversionSettings['targetUnit'],
+                      })
+                    }
+                    className="w-full rounded-md border border-input bg-background px-3 py-2"
+                  >
+                    <option value="rem">rem</option>
+                    <option value="em">em</option>
+                    <option value="%">%</option>
+                    <option value="vw">vw</option>
+                    <option value="vh">vh</option>
+                  </select>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <label htmlFor="precision" className="text-sm font-medium">
+                    Precision
+                  </label>
+                  <input
+                    id="precision"
+                    type="number"
+                    min="0"
+                    max="4"
+                    value={settings.precision}
+                    onChange={(e) =>
+                      setSettings({ ...settings, precision: Number(e.target.value) })
+                    }
+                    className="w-full rounded-md border border-input bg-background px-3 py-2"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Input CSS</label>
+                  <div className="flex items-center">
+                    <button
+                      onClick={handleFormat}
+                      disabled={isPrettierLoading || isFormatting}
+                      className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                      title={isPrettierLoading ? "Loading formatter..." : "Format CSS code"}
+                    >
+                      {isFormatting ? 'Formatting...' : 'Format'}
+                    </button>
+                    <div className="mx-2 h-4 w-px bg-border" aria-hidden="true" />
+                    <button
+                      onClick={handleMinify}
+                      className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
+                      title="Minify CSS code"
+                    >
+                      Minify
+                    </button>
+                  </div>
+                </div>
+                <div className="rounded-md border">
+                  <CodeMirror
+                    value={code}
+                    height="400px"
+                    extensions={[css(), diffTheme, diffField]}
+                    onChange={(value, viewUpdate) => {
+                      setCode(value)
+                      setShowDiff(false)
+                      if (viewUpdate.view) {
+                        inputEditorRef.current = viewUpdate.view
+                      }
+                    }}
+                    theme="dark"
+                    className="overflow-hidden rounded-md"
+                  />
+                </div>
+              </div>
+
               <button
-                onClick={handleURLExtract}
-                disabled={isLoading || !url}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded-md disabled:opacity-50"
+                onClick={handleConvert}
+                className="rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
               >
-                {isLoading ? 'Extracting...' : 'Extract CSS'}
+                Convert
               </button>
             </div>
-            <div className="flex items-center gap-4">
-              <div className="flex-1 space-y-2">
-                <label htmlFor="baseSize" className="text-sm font-medium">
-                  Base Pixel Size
-                </label>
-                <input
-                  id="baseSize"
-                  type="number"
-                  value={settings.basePixelSize}
-                  onChange={(e) =>
-                    setSettings({ ...settings, basePixelSize: Number(e.target.value) })
-                  }
-                  className="w-full rounded-md border border-input bg-background px-3 py-2"
-                />
-              </div>
-              <div className="flex-1 space-y-2">
-                <label htmlFor="targetUnit" className="text-sm font-medium">
-                  Target Unit
-                </label>
-                <select
-                  id="targetUnit"
-                  value={settings.targetUnit}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      targetUnit: e.target.value as ConversionSettings['targetUnit'],
-                    })
-                  }
-                  className="w-full rounded-md border border-input bg-background px-3 py-2"
-                >
-                  <option value="rem">rem</option>
-                  <option value="em">em</option>
-                  <option value="%">%</option>
-                  <option value="vw">vw</option>
-                  <option value="vh">vh</option>
-                </select>
-              </div>
-              <div className="flex-1 space-y-2">
-                <label htmlFor="precision" className="text-sm font-medium">
-                  Precision
-                </label>
-                <input
-                  id="precision"
-                  type="number"
-                  min="0"
-                  max="4"
-                  value={settings.precision}
-                  onChange={(e) =>
-                    setSettings({ ...settings, precision: Number(e.target.value) })
-                  }
-                  className="w-full rounded-md border border-input bg-background px-3 py-2"
-                />
-              </div>
-            </div>
 
-            <div className="space-y-2">
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Input CSS</label>
+                <label className="text-sm font-medium">Output CSS</label>
                 <div className="flex items-center">
                   <button
-                    onClick={handleFormat}
+                    onClick={handleOutputFormat}
                     disabled={isPrettierLoading || isFormatting}
                     className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-                    title={isPrettierLoading ? "Loading formatter..." : "Format CSS code"}
+                    title={isPrettierLoading ? "Loading formatter..." : "Format converted CSS"}
                   >
                     {isFormatting ? 'Formatting...' : 'Format'}
                   </button>
                   <div className="mx-2 h-4 w-px bg-border" aria-hidden="true" />
                   <button
-                    onClick={handleMinify}
+                    onClick={handleOutputMinify}
                     className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
-                    title="Minify CSS code"
+                    title="Minify converted CSS"
                   >
                     Minify
                   </button>
+                  <div className="mx-2 h-4 w-px bg-border" aria-hidden="true" />
+                  <button
+                    onClick={handleCopy}
+                    className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
+                    title="Copy to clipboard"
+                  >
+                    Copy
+                  </button>
+                  {showDiff && (
+                    <>
+                      <div className="mx-2 h-4 w-px bg-border" aria-hidden="true" />
+                      <button
+                        onClick={() => setShowDiff(false)}
+                        className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
+                        title="Hide diff highlighting"
+                      >
+                        Hide Diff
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="rounded-md border">
                 <CodeMirror
-                  value={code}
+                  value={result.convertedCode}
                   height="400px"
                   extensions={[css(), diffTheme, diffField]}
-                  onChange={(value, viewUpdate) => {
-                    setCode(value)
-                    setShowDiff(false)
-                    if (viewUpdate.view) {
-                      inputEditorRef.current = viewUpdate.view
-                    }
-                  }}
+                  readOnly
                   theme="dark"
                   className="overflow-hidden rounded-md"
+                  onUpdate={(viewUpdate) => {
+                    if (viewUpdate.view) {
+                      outputEditorRef.current = viewUpdate.view
+                    }
+                  }}
                 />
               </div>
-            </div>
 
-            <button
-              onClick={handleConvert}
-              className="rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
-            >
-              Convert
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium">Output CSS</label>
-              <div className="flex items-center">
-                <button
-                  onClick={handleOutputFormat}
-                  disabled={isPrettierLoading || isFormatting}
-                  className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-                  title={isPrettierLoading ? "Loading formatter..." : "Format converted CSS"}
-                >
-                  {isFormatting ? 'Formatting...' : 'Format'}
-                </button>
-                <div className="mx-2 h-4 w-px bg-border" aria-hidden="true" />
-                <button
-                  onClick={handleOutputMinify}
-                  className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
-                  title="Minify converted CSS"
-                >
-                  Minify
-                </button>
-                <div className="mx-2 h-4 w-px bg-border" aria-hidden="true" />
-                <button
-                  onClick={handleCopy}
-                  className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
-                  title="Copy to clipboard"
-                >
-                  Copy
-                </button>
-                {showDiff && (
-                  <>
-                    <div className="mx-2 h-4 w-px bg-border" aria-hidden="true" />
-                    <button
-                      onClick={() => setShowDiff(false)}
-                      className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
-                      title="Hide diff highlighting"
-                    >
-                      Hide Diff
-                    </button>
-                  </>
-                )}
-              </div>
+              {result.errors.length > 0 && (
+                <div className="rounded-md bg-destructive/10 p-4">
+                  <h3 className="font-medium text-destructive">Conversion Errors</h3>
+                  <ul className="mt-2 list-inside list-disc text-sm text-destructive">
+                    {result.errors.map((error, index) => (
+                      <li key={index}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-            <div className="rounded-md border">
-              <CodeMirror
-                value={result.convertedCode}
-                height="400px"
-                extensions={[css(), diffTheme, diffField]}
-                readOnly
-                theme="dark"
-                className="overflow-hidden rounded-md"
-                onUpdate={(viewUpdate) => {
-                  if (viewUpdate.view) {
-                    outputEditorRef.current = viewUpdate.view
-                  }
-                }}
-              />
-            </div>
-
-            {result.errors.length > 0 && (
-              <div className="rounded-md bg-destructive/10 p-4">
-                <h3 className="font-medium text-destructive">Conversion Errors</h3>
-                <ul className="mt-2 list-inside list-disc text-sm text-destructive">
-                  {result.errors.map((error, index) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
         </div>
       </div>
-    </div>
+    </ErrorBoundary>
   )
 }
 
