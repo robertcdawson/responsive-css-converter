@@ -98,92 +98,107 @@ export function ConversionDiffDisplay({ stats }: ConversionDiffDisplayProps) {
   return (
     <div className="mt-4 space-y-4">
       {/* Summary Section */}
-      <div className="rounded-md bg-muted p-4 text-sm">
-        <button
-          onClick={() => setIsSummaryOpen(!isSummaryOpen)}
-          className="flex items-center justify-between w-full"
-        >
-          <h3 className="font-medium">Conversion Summary</h3>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">
-              {stats.totalConversions} values converted
-            </span>
-            <span className="text-muted-foreground">
+      <div className="rounded-lg bg-card shadow-sm border border-border">
+        <div className="p-4 border-b border-border bg-muted/30">
+          <button
+            onClick={() => setIsSummaryOpen(!isSummaryOpen)}
+            className="flex items-center justify-between w-full"
+          >
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold">Conversion Summary</h3>
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                {stats.totalConversions} values
+              </span>
+            </div>
+            <span className="text-muted-foreground hover:text-foreground transition-colors">
               {isSummaryOpen ? '▼' : '▶'}
             </span>
-          </div>
-        </button>
+          </button>
+        </div>
 
         {isSummaryOpen && (
-          <div className="mt-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="p-6 space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-[repeat(auto-fit,minmax(275px,1fr))] gap-6">
               {/* Base Values Section */}
-              <div>
-                <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-                  Base Values
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <span className="flex-shrink-0">Base Values</span>
+                  <div className="h-px flex-1 bg-border"></div>
                 </h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Root Font Size:</span>
-                    <span className="font-medium">{baseValues.fontSize}px</span>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-2 rounded-md bg-muted/30">
+                    <span className="text-muted-foreground">Root Font Size</span>
+                    <span className="font-medium text-foreground ml-4">{baseValues.fontSize}px</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Viewport Width:</span>
-                    <span className="font-medium">{baseValues.viewportWidth}px</span>
+                  <div className="flex justify-between items-center p-2 rounded-md bg-muted/30">
+                    <span className="text-muted-foreground">Viewport Width</span>
+                    <span className="font-medium text-foreground ml-4">{baseValues.viewportWidth}px</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Viewport Height:</span>
-                    <span className="font-medium">{baseValues.viewportHeight}px</span>
+                  <div className="flex justify-between items-center p-2 rounded-md bg-muted/30">
+                    <span className="text-muted-foreground">Viewport Height</span>
+                    <span className="font-medium text-foreground ml-4">{baseValues.viewportHeight}px</span>
                   </div>
                 </div>
               </div>
 
               {/* Impact Analysis */}
-              <div>
-                <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-                  Impact Analysis
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <span className="flex-shrink-0">Impact Analysis</span>
+                  <div className="h-px flex-1 bg-border"></div>
                 </h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span>Responsive Impact:</span>
-                    <span className="font-medium">
-                      {stats.responsiveBreakpointImpact || 0} values
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center p-2 rounded-md bg-muted/30">
+                    <span className="text-muted-foreground">Responsive Impact</span>
+                    <div className="flex items-center gap-2 ml-4">
+                      <span className="font-medium text-foreground tabular-nums">{stats.responsiveBreakpointImpact || 0}</span>
                       {(stats.responsiveBreakpointImpact || 0) > 0 && (
-                        <span className="ml-1 text-warning">⚠️</span>
+                        <span className="text-warning flex-shrink-0">⚠️</span>
                       )}
-                    </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Accessibility Issues:</span>
-                    <span className="font-medium">
-                      {stats.accessibilityIssues || 0} issues
+                  <div className="flex justify-between items-center p-2 rounded-md bg-muted/30">
+                    <span className="text-muted-foreground">Accessibility Issues</span>
+                    <div className="flex items-center gap-2 ml-4">
+                      <span className="font-medium text-foreground tabular-nums">{stats.accessibilityIssues || 0}</span>
                       {(stats.accessibilityIssues || 0) > 0 && (
-                        <span className="ml-1 text-destructive">⚠️</span>
+                        <span className="text-destructive flex-shrink-0">⚠️</span>
                       )}
-                    </span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Needs Review:</span>
-                    <span className="font-medium">
-                      {stats.needsReviewCount || 0} values
+                  <div className="flex justify-between items-center p-2 rounded-md bg-muted/30">
+                    <span className="text-muted-foreground">Needs Review</span>
+                    <div className="flex items-center gap-2 ml-4">
+                      <span className="font-medium text-foreground tabular-nums">{stats.needsReviewCount || 0}</span>
                       {(stats.needsReviewCount || 0) > 0 && (
-                        <span className="ml-1 text-warning">⚠️</span>
+                        <span className="text-warning flex-shrink-0">⚠️</span>
                       )}
-                    </span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Category Breakdown */}
-              <div>
-                <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-                  Property Categories
+              {/* Property Categories */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-medium uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <span className="flex-shrink-0">Property Categories</span>
+                  <div className="h-px flex-1 bg-border"></div>
                 </h4>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {Object.entries(categoryBreakdown).map(([category, count]) => (
-                    <div key={category} className="flex justify-between">
-                      <span className="capitalize">{category}:</span>
-                      <span className="font-medium">{count}</span>
+                    <div key={category} className="flex justify-between items-center p-2 rounded-md bg-muted/30">
+                      <span className="text-muted-foreground capitalize truncate min-w-[80px]">{category}</span>
+                      <div className="flex items-center gap-2 ml-4">
+                        <div className="w-24 h-2 bg-background rounded-full overflow-hidden flex-shrink-0">
+                          <div
+                            className="h-full bg-primary/50 rounded-full"
+                            style={{
+                              width: `${(count / stats.totalConversions) * 100}%`
+                            }}
+                          />
+                        </div>
+                        <span className="font-medium text-foreground tabular-nums w-10 text-right">{count}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -192,16 +207,17 @@ export function ConversionDiffDisplay({ stats }: ConversionDiffDisplayProps) {
 
             {/* Values Needing Review */}
             {(stats.needsReviewCount || 0) > 0 && (
-              <div className="mt-6 p-4 bg-warning/10 rounded-md border border-warning">
+              <div className="mt-8 rounded-lg border border-warning/30 bg-warning/5 overflow-hidden">
                 <button
                   onClick={() => setIsReviewOpen(!isReviewOpen)}
-                  className="flex items-center justify-between w-full"
+                  className="flex items-center justify-between w-full p-4 border-b border-warning/20 hover:bg-warning/10 transition-colors"
                 >
-                  <h4 className="text-xs uppercase tracking-wider text-warning">
-                    Values Needing Review
-                  </h4>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-warning">
+                    <span className="text-warning">⚠️</span>
+                    <h4 className="font-medium text-warning">Values Needing Review</h4>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-warning/80">
                       {stats.needsReviewCount} values to review
                     </span>
                     <span className="text-warning">
@@ -211,23 +227,29 @@ export function ConversionDiffDisplay({ stats }: ConversionDiffDisplayProps) {
                 </button>
 
                 {isReviewOpen && (
-                  <div className="mt-4 space-y-2">
+                  <div className="p-4 space-y-3">
                     {stats.diffs
                       .filter(diff => diff.needsReview)
                       .map((diff, index) => (
-                        <div key={index} className="flex items-start gap-2 text-sm">
-                          <span>⚠️</span>
-                          <div>
-                            <div className="font-medium">
-                              Line {diff.line}: {diff.property}
+                        <div key={index} className="flex items-start gap-3 p-3 rounded-md bg-warning/10 border border-warning/20">
+                          <span className="text-warning mt-0.5">⚠️</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium text-warning">Line {diff.line}</span>
+                              <span className="text-muted-foreground">•</span>
+                              <code className="px-1.5 py-0.5 rounded bg-muted/50 font-mono text-sm">
+                                {diff.property}
+                              </code>
                             </div>
-                            <div className="text-muted-foreground">
-                              {diff.original} → {diff.converted}
+                            <div className="mt-1 flex items-center gap-2 text-sm">
+                              <code className="line-through text-muted-foreground">{diff.original}</code>
+                              <span className="text-muted-foreground">→</span>
+                              <code className="text-foreground">{diff.converted}</code>
                             </div>
                             {diff.reviewReason && (
-                              <div className="text-warning text-xs mt-1">
+                              <p className="mt-2 text-sm text-warning/80">
                                 {diff.reviewReason}
-                              </div>
+                              </p>
                             )}
                           </div>
                         </div>
@@ -372,9 +394,11 @@ export function ConversionDiffDisplay({ stats }: ConversionDiffDisplayProps) {
                         }}
                       />
                     </div>
-                    <span className="font-medium min-w-[100px]">
-                      {property}: {count}
-                    </span>
+                    <div className="flex items-baseline justify-end min-w-[120px] font-medium">
+                      <span className="truncate flex-1 text-right">{property}</span>
+                      <span className="text-muted-foreground px-2">:</span>
+                      <span className="tabular-nums w-6 text-right">{count}</span>
+                    </div>
                   </div>
                 ))}
               </div>
