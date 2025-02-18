@@ -1,0 +1,61 @@
+---
+description: UI/UX instructions
+globs: 
+---
+# UI & UX Description
+
+## Overall Layout
+The app features a clean, minimalist design that emphasizes clarity and ease of use. The main screen is divided into two primary sections: an input panel and an output panel, laid out side-by-side on larger screens and stacked vertically on smaller devices.
+
+## Input Panel
+- **Code Editor:**  
+  A syntax-highlighted text area where users can type or paste their CSS code. The editor is designed with a modern, flat aesthetic that minimizes distractions and clearly differentiates between different code elements.
+  
+- **Control Toolbar:**  
+  Positioned above the editor, this toolbar includes:
+  - **Conversion Settings:** Dropdown menus and input fields for selecting target units (rem, em, etc.) and defining base values.
+  - **File Actions:** Buttons for uploading a CSS file and exporting the converted output.
+  - **Action Buttons:** A "Convert" button to trigger the conversion process manually (in addition to real-time updates).
+
+## Output Panel
+- **Converted Code Display:**  
+  A read-only, syntax-highlighted area that shows the transformed CSS code. This panel mirrors the styling of the input editor to maintain consistency.
+  
+- **Copy & Download Options:**  
+  Quick-access buttons for copying the output to the clipboard or downloading it as a file.
+
+## Visual Feedback & Error Handling
+- **Real-Time Updates:**  
+  The output panel refreshes dynamically as the user edits the input, ensuring immediate feedback on changes.
+  
+- **Error Notifications:**  
+  If invalid CSS is detected, inline error messages appear directly in the input panel. These messages are styled with clear colors (e.g., red highlights) and concise tooltips to guide users toward corrections.
+
+## Responsive & Accessible Design
+- **Adaptive Layout:**  
+  The design is fully responsive, ensuring that the side-by-side layout gracefully transitions to a stacked layout on mobile devices. Elements are sized and spaced appropriately to support touch interactions.
+  
+- **Accessibility Features:**  
+  The app supports keyboard navigation, screen reader compatibility, and high contrast themes. Interactive elements include proper ARIA labels, ensuring all users have a smooth experience.
+
+## User Flow & Experience
+1. **Entry Point:**  
+   Users are greeted with a simple landing page that briefly explains the app's purpose. A prominent "Get Started" button leads directly to the conversion interface.
+
+2. **Editing & Conversion:**  
+   Upon entering CSS code in the editor, users immediately see the converted output. The intuitive layout makes it clear which code is being processed and what the resulting changes are.
+  
+3. **Customization:**  
+   Users can effortlessly adjust conversion settings via the toolbar. As settings are modified, the preview updates in real time, providing confidence in the transformation process.
+  
+4. **Finalization:**  
+   Once satisfied, users can copy the converted code, download it, or even revert to previous versions using a simple history or undo feature if implemented.
+
+## Visual Aesthetics
+- **Color Palette:**  
+  A neutral, modern color scheme with soft background hues and high-contrast text ensures readability. Accent colors highlight interactive elements like buttons and error messages.
+  
+- **Typography:**  
+  Clean, sans-serif fonts are used throughout to maintain a professional and modern look, with clear hierarchy in headings, code, and body text.
+
+This UI and UX design focuses on efficiency and clarity, ensuring that users—from beginners to experienced developers—can quickly convert and refine their CSS for responsive design with minimal friction.

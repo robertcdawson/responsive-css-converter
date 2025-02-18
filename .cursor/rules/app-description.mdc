@@ -1,0 +1,49 @@
+---
+description: App description
+globs: 
+---
+# App Description
+
+## App Name (Working Title): 
+
+Responsive CSS Converter
+
+## Concept:
+The Responsive CSS Converter is a web app designed to streamline the process of modernizing web designs by converting fixed, absolute CSS values (such as pixels) into responsive, relative units (like rem, em, or percentages). This app empowers developers and designers to quickly transform legacy code into scalable, flexible designs, ensuring their websites adapt seamlessly to various device sizes.
+
+## Key Features:
+
+### Absolute to Relative Conversion:
+- **Unit Transformation:**  
+  Automatically converts fixed units (e.g., pixels) into relative ones (e.g., rem, em, %, vw/vh) based on customizable user settings.
+
+- **Custom Base Settings:**  
+  Allows users to define base values (for instance, setting a base font size) to ensure consistent conversions across their CSS.
+
+### Real-Time Preview:
+- **Instant Conversion:**  
+  Displays both the original and converted CSS side-by-side, offering immediate visual feedback as users edit or input their code.
+
+- **Error Detection:**  
+  Highlights any syntax errors or unsupported properties, helping users quickly identify and correct issues.
+
+### User-Friendly Interface:
+- **Integrated Code Editor:**  
+  A clean, syntax-highlighted text area where users can write or paste their CSS code, facilitating easy edits and comparisons.
+
+- **Interactive Controls:**  
+  Simple toggles and input fields allow users to adjust conversion options and view changes dynamically.
+
+### Responsive & Accessible Design:
+- **Optimized Layout:**  
+  The app is designed to work flawlessly on both desktop and mobile devices, ensuring a seamless experience regardless of screen size.
+
+- **Accessibility Features:**  
+  Incorporates keyboard navigability, high-contrast modes, and clear labeling to accommodate a diverse range of users.
+
+### File Support & Export Options:
+- **File Upload/Download:**  
+  Users can import existing CSS files for conversion and export the converted code, making it easy to integrate with ongoing projects.
+
+- **Clipboard Functionality:**  
+  A quick copy-to-clipboard feature enables users to easily transfer the converted CSS to their development environment.

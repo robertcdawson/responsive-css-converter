@@ -1,0 +1,72 @@
+---
+description: Tech stack
+globs: 
+---
+# Tech Stack Document for Responsive CSS Converter
+
+## Overview
+This document outlines the recommended tech stack for building the Responsive CSS Converter web application. The app will convert absolute CSS values (e.g., pixels) into relative units (e.g., rem, em, %) and provide a real-time preview of the conversion. The primary goal is to create a lightweight, maintainable, and performant solution.
+
+## Front-End
+
+- **React:**  
+  Utilize React for a component-based architecture, allowing for a modular and reusable codebase.
+
+- **JavaScript / TypeScript:**  
+  - Use JavaScript as the primary language, with an option to integrate TypeScript for improved type safety and maintainability.
+
+- **Styling:**  
+  - **CSS-in-JS or CSS Modules:** Manage scoped component styles.
+  - **Tailwind CSS / Bootstrap:** Consider a CSS framework for rapid styling and ensuring a responsive design.
+
+- **State Management:**  
+  - **React Hooks / Context API:** For managing component state and sharing data across the app.
+
+## Conversion Logic
+
+- **JavaScript Functions:**  
+  - Implement core CSS parsing and conversion logic using vanilla JavaScript.
+
+- **PostCSS (Optional):**  
+  - Integrate PostCSS plugins for advanced CSS manipulation if more complex conversions are needed.
+
+## Build Tools & Package Management
+
+- **Project Bootstrap:**  
+  - **Create React App or Vite:** To quickly set up a React project with an efficient development environment.
+  
+- **Bundler/Transpiler:**  
+  - **Webpack/Babel:** Automatically bundled with Create React App or Vite. Customize if advanced configurations are needed.
+
+- **Dependency Management:**  
+  - **npm or Yarn:** For managing project dependencies and scripts.
+
+## Testing
+
+- **Unit Testing:**  
+  - **Jest:** For testing the core conversion functions and other JavaScript logic.
+  
+- **Component Testing:**  
+  - **React Testing Library:** To test React components and ensure UI reliability.
+
+## Local Development & Deployment
+
+- **Development Server:**  
+  - Utilize the development server provided by Create React App or Vite for live reloading and quick iterations.
+  
+- **Static Hosting:**  
+  - The app can be deployed as a static site using platforms such as GitHub Pages, Netlify, or Vercel.
+
+## Additional Tools
+
+- **Code Quality:**  
+  - **ESLint & Prettier:** Enforce coding standards and ensure code consistency throughout the project.
+
+- **Version Control:**  
+  - **Git:** Manage source code and collaborate using Git.
+
+- **Editor:**  
+  - **Visual Studio Code (VSCode):** Recommended IDE for development due to its extensive plugin ecosystem and React support.
+
+## Conclusion
+This tech stack is designed to deliver a responsive, efficient, and user-friendly CSS conversion tool while keeping the development process straightforward and maintainable. By leveraging React and the accompanying modern tools, the Responsive CSS Converter can be developed as a robust MVP with the potential for future enhancements.
