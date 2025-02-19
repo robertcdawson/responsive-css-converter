@@ -1,69 +1,14 @@
 import { ConversionStats } from '../types';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 
 interface ConversionDiffDisplayProps {
   stats?: ConversionStats;
 }
 
-const VIEWPORT_SIZES = {
-  mobile: { width: 375, height: 667 },
-  tablet: { width: 768, height: 1024 },
-  desktop: { width: 1920, height: 1080 }
-};
-
-const PREVIEW_SCALE = {
-  mobile: 1,
-  tablet: 0.5,
-  desktop: 0.2
-};
-
 export function ConversionDiffDisplay({ stats }: ConversionDiffDisplayProps) {
   const [isSummaryOpen, setIsSummaryOpen] = useState(true);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [selectedViewport, setSelectedViewport] = useState<'mobile' | 'tablet' | 'desktop'>('mobile');
-
-  // Get preview values for the selected viewport
-  const previewValues = useMemo(() => {
-    if (!stats) return null;
-
-    const viewport = VIEWPORT_SIZES[selectedViewport];
-    const scale = PREVIEW_SCALE[selectedViewport];
-    const previewableProperties = (stats.diffs || []).filter(diff => {
-      const prop = diff.property?.toLowerCase() || '';
-      return (
-        prop.includes('width') ||
-        prop.includes('height') ||
-        prop.includes('padding') ||
-        prop.includes('margin') ||
-        prop.includes('font-size') ||
-        prop.includes('gap')
-      );
-    });
-
-    // Group by property type
-    const grouped = previewableProperties.reduce((acc, diff) => {
-      const prop = diff.property?.toLowerCase() || '';
-      if (prop.includes('width')) acc.widths.push(diff);
-      if (prop.includes('height')) acc.heights.push(diff);
-      if (prop.includes('padding')) acc.spacing.push(diff);
-      if (prop.includes('margin')) acc.spacing.push(diff);
-      if (prop.includes('font-size')) acc.typography.push(diff);
-      if (prop.includes('gap')) acc.spacing.push(diff);
-      return acc;
-    }, {
-      widths: [] as typeof previewableProperties,
-      heights: [] as typeof previewableProperties,
-      spacing: [] as typeof previewableProperties,
-      typography: [] as typeof previewableProperties
-    });
-
-    return {
-      viewport,
-      scale,
-      properties: grouped
-    };
-  }, [stats, selectedViewport]);
 
   if (!stats?.totalConversions) {
     return null;
@@ -76,10 +21,29 @@ export function ConversionDiffDisplay({ stats }: ConversionDiffDisplayProps) {
     return acc;
   }, {} as Record<string, number>);
 
+  // Calculate impact counts from diffs if not provided in stats
+  const responsiveImpactCount = stats.diffs.filter(diff => diff.impactsResponsiveness).length;
+  const accessibilityIssuesCount = stats.diffs.filter(diff => diff.impactsAccessibility).length;
+  const explicitReviewCount = stats.diffs.filter(diff => diff.needsReview).length;
+
+  // Total items needing review (including responsive and accessibility impacts)
+  const needsReviewCount = stats.diffs.filter(diff =>
+    diff.needsReview || diff.impactsResponsiveness || diff.impactsAccessibility
+  ).length;
+
   // Sort property breakdown for display (top 5)
   const topProperties = Object.entries(propertyBreakdown)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5);
+    .sort(([, a], [, b]) => b - a);
+
+  // Calculate total changes and "Other" category
+  const totalChanges: number = topProperties.reduce((sum, [, count]) => sum + (count as number), 0);
+  const top5Properties = topProperties.slice(0, 5);
+  const otherCount: number = totalChanges - top5Properties.reduce((sum, [, count]) => sum + (count as number), 0);
+
+  // Create display properties with sorted "other" category
+  const displayProperties = otherCount > 0
+    ? [...top5Properties, ['other', otherCount]].sort(([, a], [, b]) => (Number(b) - Number(a)))
+    : top5Properties;
 
   // Default values for new stats properties
   const baseValues = stats.baseValues || {
@@ -149,29 +113,38 @@ export function ConversionDiffDisplay({ stats }: ConversionDiffDisplayProps) {
                 </h4>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center p-2 rounded-md bg-muted/30">
-                    <span className="text-muted-foreground">Responsive Impact</span>
+                    <span className="text-muted-foreground">Total Needs Review</span>
                     <div className="flex items-center gap-2 ml-4">
-                      <span className="font-medium text-foreground tabular-nums">{stats.responsiveBreakpointImpact || 0}</span>
-                      {(stats.responsiveBreakpointImpact || 0) > 0 && (
+                      <span className="font-medium text-foreground tabular-nums">{needsReviewCount}</span>
+                      {needsReviewCount > 0 && (
                         <span className="text-warning flex-shrink-0">⚠️</span>
                       )}
                     </div>
                   </div>
-                  <div className="flex justify-between items-center p-2 rounded-md bg-muted/30">
-                    <span className="text-muted-foreground">Accessibility Issues</span>
+                  <div className="flex justify-between items-center p-2 rounded-md bg-muted/30 pl-6">
+                    <span className="text-muted-foreground">└ Manual Review</span>
                     <div className="flex items-center gap-2 ml-4">
-                      <span className="font-medium text-foreground tabular-nums">{stats.accessibilityIssues || 0}</span>
-                      {(stats.accessibilityIssues || 0) > 0 && (
+                      <span className="font-medium text-foreground tabular-nums">{explicitReviewCount}</span>
+                      {explicitReviewCount > 0 && (
+                        <span className="text-warning flex-shrink-0">⚠️</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center p-2 rounded-md bg-muted/30 pl-6">
+                    <span className="text-muted-foreground">└ Responsive Impact</span>
+                    <div className="flex items-center gap-2 ml-4">
+                      <span className="font-medium text-foreground tabular-nums">{responsiveImpactCount}</span>
+                      {responsiveImpactCount > 0 && (
+                        <span className="text-warning flex-shrink-0">⚠️</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center p-2 rounded-md bg-muted/30 pl-6">
+                    <span className="text-muted-foreground">└ Accessibility Issues</span>
+                    <div className="flex items-center gap-2 ml-4">
+                      <span className="font-medium text-foreground tabular-nums">{accessibilityIssuesCount}</span>
+                      {accessibilityIssuesCount > 0 && (
                         <span className="text-destructive flex-shrink-0">⚠️</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex justify-between items-center p-2 rounded-md bg-muted/30">
-                    <span className="text-muted-foreground">Needs Review</span>
-                    <div className="flex items-center gap-2 ml-4">
-                      <span className="font-medium text-foreground tabular-nums">{stats.needsReviewCount || 0}</span>
-                      {(stats.needsReviewCount || 0) > 0 && (
-                        <span className="text-warning flex-shrink-0">⚠️</span>
                       )}
                     </div>
                   </div>
@@ -206,7 +179,7 @@ export function ConversionDiffDisplay({ stats }: ConversionDiffDisplayProps) {
             </div>
 
             {/* Values Needing Review */}
-            {(stats.needsReviewCount || 0) > 0 && (
+            {(needsReviewCount > 0) && (
               <div className="mt-8 rounded-lg border border-warning/30 bg-warning/5 overflow-hidden">
                 <button
                   onClick={() => setIsReviewOpen(!isReviewOpen)}
@@ -218,7 +191,7 @@ export function ConversionDiffDisplay({ stats }: ConversionDiffDisplayProps) {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-warning/80">
-                      {stats.needsReviewCount} values to review
+                      {needsReviewCount} values to review
                     </span>
                     <span className="text-warning">
                       {isReviewOpen ? '▼' : '▶'}
@@ -229,7 +202,7 @@ export function ConversionDiffDisplay({ stats }: ConversionDiffDisplayProps) {
                 {isReviewOpen && (
                   <div className="p-4 space-y-3">
                     {stats.diffs
-                      .filter(diff => diff.needsReview)
+                      .filter(diff => diff.needsReview || diff.impactsResponsiveness || diff.impactsAccessibility)
                       .map((diff, index) => (
                         <div key={index} className="flex items-start gap-3 p-3 rounded-md bg-warning/10 border border-warning/20">
                           <span className="text-warning mt-0.5">⚠️</span>
@@ -246,11 +219,23 @@ export function ConversionDiffDisplay({ stats }: ConversionDiffDisplayProps) {
                               <span className="text-muted-foreground">→</span>
                               <code className="text-foreground">{diff.converted}</code>
                             </div>
-                            {diff.reviewReason && (
-                              <p className="mt-2 text-sm text-warning/80">
-                                {diff.reviewReason}
-                              </p>
-                            )}
+                            <div className="mt-2 space-y-1 text-sm">
+                              {diff.reviewReason && (
+                                <p className="text-warning/80">
+                                  {diff.reviewReason}
+                                </p>
+                              )}
+                              {diff.impactsAccessibility && (
+                                <p className="text-destructive/80">
+                                  May impact accessibility
+                                </p>
+                              )}
+                              {diff.impactsResponsiveness && (
+                                <p className="text-warning/80">
+                                  May impact responsive behavior
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -259,148 +244,30 @@ export function ConversionDiffDisplay({ stats }: ConversionDiffDisplayProps) {
               </div>
             )}
 
-            {/* Viewport Preview */}
-            <div className="mt-6">
-              <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
-                Size Preview
-              </h4>
-              <div className="space-y-4">
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => setSelectedViewport('mobile')}
-                    className={`px-3 py-1 rounded ${selectedViewport === 'mobile' ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/10'
-                      }`}
-                  >
-                    Mobile
-                  </button>
-                  <button
-                    onClick={() => setSelectedViewport('tablet')}
-                    className={`px-3 py-1 rounded ${selectedViewport === 'tablet' ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/10'
-                      }`}
-                  >
-                    Tablet
-                  </button>
-                  <button
-                    onClick={() => setSelectedViewport('desktop')}
-                    className={`px-3 py-1 rounded ${selectedViewport === 'desktop' ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/10'
-                      }`}
-                  >
-                    Desktop
-                  </button>
-                </div>
-
-                <div className="relative h-64 bg-background rounded-md overflow-hidden border border-border">
-                  {previewValues ? (
-                    <div className="absolute inset-0 flex flex-col">
-                      <div className="p-4 border-b border-border bg-muted/50">
-                        <div className="text-xs text-muted-foreground">
-                          Viewport: {previewValues.viewport.width}x{previewValues.viewport.height}
-                        </div>
-                      </div>
-
-                      <div className="p-4 overflow-y-auto">
-                        {/* Width Examples */}
-                        {previewValues.properties.widths.length > 0 && (
-                          <div className="mb-6">
-                            <div className="text-xs text-muted-foreground mb-2">Width Examples:</div>
-                            <div className="space-y-3">
-                              {previewValues.properties.widths.slice(0, 2).map((diff, i) => (
-                                <div key={i} className="flex items-center gap-2">
-                                  <div
-                                    className="h-4 bg-primary/20 rounded"
-                                    style={{
-                                      width: `calc(${diff.converted} * ${previewValues.scale})`,
-                                      minWidth: '4px'
-                                    }}
-                                  />
-                                  <span className="text-xs whitespace-nowrap">
-                                    {diff.property}: {diff.original} → {diff.converted}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Typography Examples */}
-                        {previewValues.properties.typography.length > 0 && (
-                          <div className="mb-6">
-                            <div className="text-xs text-muted-foreground mb-2">Typography Examples:</div>
-                            <div className="space-y-3">
-                              {previewValues.properties.typography.slice(0, 2).map((diff, i) => {
-                                const scaledSize = `max(8px, calc(${diff.converted} * ${previewValues.scale}))`;
-                                return (
-                                  <div key={i}>
-                                    <span style={{ fontSize: scaledSize }}>
-                                      Sample Text ({diff.original} → {diff.converted})
-                                    </span>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Spacing Examples */}
-                        {previewValues.properties.spacing.length > 0 && (
-                          <div className="mb-6">
-                            <div className="text-xs text-muted-foreground mb-2">Spacing Examples:</div>
-                            <div className="space-y-3">
-                              {previewValues.properties.spacing.slice(0, 2).map((diff, i) => (
-                                <div key={i} className="flex items-center gap-2">
-                                  <div className="flex items-center">
-                                    <div className="w-8 h-8 bg-primary/20" />
-                                    <div
-                                      className="h-8 bg-muted"
-                                      style={{
-                                        width: `calc(${diff.converted} * ${previewValues.scale})`,
-                                        minWidth: '4px'
-                                      }}
-                                    />
-                                    <div className="w-8 h-8 bg-primary/20" />
-                                  </div>
-                                  <span className="text-xs whitespace-nowrap">
-                                    {diff.property}: {diff.original} → {diff.converted}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                      No previewable values found
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
             {/* Most Affected Properties */}
             <div className="mt-4">
               <h4 className="text-xs uppercase tracking-wider text-muted-foreground mb-2">
                 Most Affected Properties
               </h4>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                {topProperties.map(([property, count]) => (
-                  <div key={property} className="flex items-center gap-2">
-                    <div className="flex-1 h-2 bg-background rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-primary/50 rounded-full"
-                        style={{
-                          width: `${(count / stats.totalConversions) * 100}%`
-                        }}
-                      />
+                {displayProperties.map(([property, count], index) => {
+                  const percentage = Math.round((Number(count) / Number(totalChanges)) * 100);
+                  return (
+                    <div key={property} className="flex items-center gap-3 p-2 rounded-md bg-muted/30">
+                      <div className="text-muted-foreground font-medium min-w-[1.5rem]">
+                        {index + 1}.
+                      </div>
+                      <div className="flex-1 flex items-center justify-between gap-3">
+                        <div className="font-medium truncate">
+                          {property}
+                        </div>
+                        <div className="font-medium text-muted-foreground whitespace-nowrap">
+                          {count} ({percentage}%)
+                        </div>
+                      </div>
                     </div>
-                    <div className="flex items-baseline justify-end min-w-[120px] font-medium">
-                      <span className="truncate flex-1 text-right">{property}</span>
-                      <span className="text-muted-foreground px-2">:</span>
-                      <span className="tabular-nums w-6 text-right">{count}</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -432,9 +299,9 @@ export function ConversionDiffDisplay({ stats }: ConversionDiffDisplayProps) {
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">Line {diff.line}</span>
                     <span className="font-medium">{diff.property}</span>
-                    {diff.needsReview && <span className="text-warning">⚠️</span>}
-                    {diff.impactsAccessibility && <span className="text-destructive">⚠️</span>}
-                    {diff.impactsResponsiveness && <span className="text-warning">⚠️</span>}
+                    {diff.needsReview && <span className="text-warning" title="Needs manual review">⚠️</span>}
+                    {diff.impactsAccessibility && <span className="text-destructive" title="May impact accessibility">⚠️</span>}
+                    {diff.impactsResponsiveness && <span className="text-warning" title="May impact responsive behavior">⚠️</span>}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-muted-foreground line-through">{diff.original}</span>

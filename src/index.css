@@ -58,3 +58,38 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Editor styles */
+.editor-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 32px;
+  margin-bottom: 0.5rem;
+}
+
+.editor-wrapper {
+  width: 100%;
+}
+
+.editor-wrapper .cm-editor {
+  padding: 1rem;
+}
+
+.editor-wrapper .cm-gutters {
+  padding-right: 0.5rem;
+}
+
+.editor-wrapper .cm-content {
+  padding: 0;
+}
+
+/* Ensure consistent line number width */
+.editor-wrapper .cm-lineNumbers {
+  min-width: 3ch;
+}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, Component } from 'react'
+import { useState, useEffect, useRef, Component, useCallback } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
 import { css } from '@codemirror/lang-css'
 import { EditorView, Decoration, DecorationSet } from '@codemirror/view'
@@ -85,9 +85,72 @@ export function App() {
   const [isPrettierLoading, setIsPrettierLoading] = useState(true)
   const [url, setUrl] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isInputScrolling, setIsInputScrolling] = useState(false)
+  const [isOutputScrolling, setIsOutputScrolling] = useState(false)
 
   const inputEditorRef = useRef<EditorView | null>(null)
   const outputEditorRef = useRef<EditorView | null>(null)
+
+  const syncScroll = useCallback((sourceView: EditorView, targetView: EditorView) => {
+    // Only sync if both editors have content
+    if (sourceView.state.doc.length === 0 || targetView.state.doc.length === 0) {
+      return;
+    }
+
+    console.log('Syncing scroll');
+    const sourceScroll = sourceView.scrollDOM;
+    const targetScroll = targetView.scrollDOM;
+
+    // Use requestAnimationFrame for smoother scrolling
+    requestAnimationFrame(() => {
+      const sourceScrollPercentage = sourceScroll.scrollTop / (sourceScroll.scrollHeight - sourceScroll.clientHeight);
+      const targetScrollMax = targetScroll.scrollHeight - targetScroll.clientHeight;
+      targetScroll.scrollTop = sourceScrollPercentage * targetScrollMax;
+    });
+  }, []);
+
+  // Create scroll sync extensions
+  const createInputExtensions = useCallback((outputRef: React.MutableRefObject<EditorView | null>) => {
+    return [
+      ...editorExtensions,
+      EditorView.domEventHandlers({
+        scroll: (event, view) => {
+          // Check if the scroll event originated from within the editor
+          if (event.target !== view.scrollDOM) {
+            return;
+          }
+
+          if (!isOutputScrolling && outputRef.current) {
+            console.log('Input scroll event');
+            setIsInputScrolling(true);
+            syncScroll(view, outputRef.current);
+            requestAnimationFrame(() => setIsInputScrolling(false));
+          }
+        }
+      })
+    ];
+  }, [isOutputScrolling, setIsInputScrolling, syncScroll]);
+
+  const createOutputExtensions = useCallback((inputRef: React.MutableRefObject<EditorView | null>) => {
+    return [
+      ...editorExtensions,
+      EditorView.domEventHandlers({
+        scroll: (event, view) => {
+          // Check if the scroll event originated from within the editor
+          if (event.target !== view.scrollDOM) {
+            return;
+          }
+
+          if (!isInputScrolling && inputRef.current) {
+            console.log('Output scroll event');
+            setIsOutputScrolling(true);
+            syncScroll(view, inputRef.current);
+            requestAnimationFrame(() => setIsOutputScrolling(false));
+          }
+        }
+      })
+    ];
+  }, [isInputScrolling, setIsOutputScrolling, syncScroll]);
 
   // Initialize Prettier
   useEffect(() => {
@@ -308,7 +371,8 @@ export function App() {
             </p>
           </header>
 
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className="space-y-8">
+            {/* Conversion Options Section */}
             <div className="space-y-4">
               <div className="flex gap-2">
                 <input
@@ -333,8 +397,9 @@ export function App() {
                   Demo
                 </button>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="flex-1 space-y-2">
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
                   <label htmlFor="baseSize" className="text-sm font-medium">
                     Base Pixel Size
                   </label>
@@ -348,7 +413,7 @@ export function App() {
                     className="w-full rounded-md border border-input bg-background px-3 py-2"
                   />
                 </div>
-                <div className="flex-1 space-y-2">
+                <div className="space-y-2">
                   <label htmlFor="targetUnit" className="text-sm font-medium">
                     Target Unit
                   </label>
@@ -370,7 +435,7 @@ export function App() {
                     <option value="vh">vh</option>
                   </select>
                 </div>
-                <div className="flex-1 space-y-2">
+                <div className="space-y-2">
                   <label htmlFor="precision" className="text-sm font-medium">
                     Precision
                   </label>
@@ -386,7 +451,6 @@ export function App() {
                       setSettings({ ...settings, precision: value });
                     }}
                     onBlur={(e) => {
-                      // Ensure empty input defaults to 0
                       if (e.target.value === '') {
                         setSettings({ ...settings, precision: 0 });
                       }
@@ -395,96 +459,103 @@ export function App() {
                   />
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-sm font-medium">Input CSS</label>
-                  <button
-                    onClick={handleFormatInput}
-                    className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
-                    title="Format input code"
-                    disabled={isPrettierLoading}
-                  >
-                    Format
-                  </button>
-                </div>
-                <div className="rounded-md border">
-                  <CodeMirror
-                    value={code}
-                    height="400px"
-                    extensions={editorExtensions}
-                    onChange={(value) => {
-                      setCode(value)
-                    }}
-                    ref={(instance) => {
-                      if (instance?.view) {
-                        inputEditorRef.current = instance.view;
-                      }
-                    }}
-                    theme="dark"
-                    className="overflow-hidden rounded-md"
-                  />
-                </div>
-              </div>
-
-              <button
-                onClick={handleConvert}
-                className="rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
-              >
-                Convert
-              </button>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Output CSS</label>
-                <div className="flex items-center">
-                  <button
-                    onClick={handleFormatOutput}
-                    className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
-                    title="Format output code"
-                    disabled={isPrettierLoading || !result.convertedCode}
-                  >
-                    Format
-                  </button>
-                  <div className="mx-2 h-4 w-px bg-border" aria-hidden="true" />
-                  <button
-                    onClick={handleCopy}
-                    className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
-                    title="Copy to clipboard"
-                  >
-                    Copy
-                  </button>
+            {/* Editors Grid */}
+            <div className="grid gap-8 md:grid-cols-2">
+              <div className="space-y-4">
+                <div className="editor-container">
+                  <div className="editor-header">
+                    <label className="text-sm font-medium">Input CSS</label>
+                    <button
+                      onClick={handleFormatInput}
+                      className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
+                      title="Format input code"
+                      disabled={isPrettierLoading}
+                    >
+                      Format
+                    </button>
+                  </div>
+                  <div className="rounded-md border editor-wrapper">
+                    <CodeMirror
+                      value={code}
+                      height="400px"
+                      extensions={createInputExtensions(outputEditorRef)}
+                      onChange={(value) => {
+                        setCode(value)
+                      }}
+                      ref={(instance) => {
+                        if (instance?.view) {
+                          inputEditorRef.current = instance.view;
+                        }
+                      }}
+                      theme="dark"
+                      className="overflow-hidden rounded-md"
+                    />
+                  </div>
                 </div>
-              </div>
-              <div className="rounded-md border">
-                <CodeMirror
-                  value={result.convertedCode}
-                  height="400px"
-                  extensions={editorExtensions}
-                  readOnly
-                  theme="dark"
-                  className="overflow-hidden rounded-md"
-                  ref={(instance) => {
-                    if (instance?.view) {
-                      outputEditorRef.current = instance.view;
-                    }
-                  }}
-                />
+
+                <button
+                  onClick={handleConvert}
+                  className="rounded-md bg-primary px-4 py-2 text-primary-foreground hover:bg-primary/90"
+                >
+                  Convert
+                </button>
               </div>
 
-              <ConversionDiffDisplay stats={result.stats} />
-
-              {result.errors.length > 0 && (
-                <div className="rounded-md bg-destructive/10 p-4">
-                  <h3 className="font-medium text-destructive">Conversion Errors</h3>
-                  <ul className="mt-2 list-inside list-disc text-sm text-destructive">
-                    {result.errors.map((error, index) => (
-                      <li key={index}>{error}</li>
-                    ))}
-                  </ul>
+              <div className="space-y-4">
+                <div className="editor-container">
+                  <div className="editor-header">
+                    <label className="text-sm font-medium">Output CSS</label>
+                    <div className="flex items-center">
+                      <button
+                        onClick={handleFormatOutput}
+                        className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
+                        title="Format output code"
+                        disabled={isPrettierLoading || !result.convertedCode}
+                      >
+                        Format
+                      </button>
+                      <div className="mx-2 h-4 w-px bg-border" aria-hidden="true" />
+                      <button
+                        onClick={handleCopy}
+                        className="inline-flex items-center rounded-md px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10 hover:text-primary/90"
+                        title="Copy to clipboard"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                  <div className="rounded-md border editor-wrapper">
+                    <CodeMirror
+                      value={result.convertedCode}
+                      height="400px"
+                      extensions={createOutputExtensions(inputEditorRef)}
+                      readOnly
+                      theme="dark"
+                      className="overflow-hidden rounded-md"
+                      ref={(instance) => {
+                        if (instance?.view) {
+                          outputEditorRef.current = instance.view;
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
-              )}
+
+                <ConversionDiffDisplay stats={result.stats} />
+
+                {result.errors.length > 0 && (
+                  <div className="rounded-md bg-destructive/10 p-4">
+                    <h3 className="font-medium text-destructive">Conversion Errors</h3>
+                    <ul className="mt-2 list-inside list-disc text-sm text-destructive">
+                      {result.errors.map((error, index) => (
+                        <li key={index}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
