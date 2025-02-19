@@ -197,7 +197,7 @@ export const convertCSS = (
   let convertedCode = css;
   const diffs: ConversionDiff[] = [];
   let totalConversions = 0;
-  let responsiveBreakpointImpact = 0;
+  const responsiveBreakpointImpact = 0;
   let accessibilityIssues = 0;
   let needsReviewCount = 0;
 
@@ -224,7 +224,7 @@ export const convertCSS = (
 
     convertedCode = lines.map((line) => {
       currentLine++;
-      return line.replace(CSS_PX_REGEX, (match, property, value) => {
+      return line.replace(CSS_PX_REGEX, (_match, property, value) => {
         const cleanProperty = property.trim().toLowerCase().replace(/\s*:\s*$/, '');
         const pixelValue = parseFloat(value);
         const convertedValue = convertCSSValue(value, { ...settings, basePixelSize: effectiveBaseSize });
@@ -368,13 +368,6 @@ export const convertCSS = (
     responsiveBreakpointImpact,
     needsReviewCount
   };
-
-  // Calculate property breakdown for most affected properties section
-  const propertyBreakdown = stats.diffs.reduce((acc, diff) => {
-    const property = (diff.property || 'unknown').replace(/\s*:\s*$/, '');
-    acc[property] = (acc[property] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
 
   return {
     originalCode: css,

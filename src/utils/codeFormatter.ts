@@ -42,7 +42,7 @@ export async function formatCSS(css: string): Promise<FormattingResult> {
     // First, preserve numeric precision by replacing numbers with placeholders
     const numberRegex = /(\d+\.\d+)([a-z%]*)/g;
     const numbers: string[] = [];
-    const preservedCss = css.replace(numberRegex, (match: string, number: string, unit: string) => {
+    const preservedCss = css.replace(numberRegex, (_match: string, number: string, unit: string) => {
       numbers.push(number);
       return `__NUM${numbers.length - 1}__${unit}`;
     });

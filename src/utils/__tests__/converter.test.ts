@@ -15,9 +15,9 @@ describe('convertCSSValue', () => {
   });
 
   test('handles different target units', () => {
-    const emSettings = { ...settings, targetUnit: 'em' };
-    const percentSettings = { ...settings, targetUnit: '%' };
-    const vwSettings = { ...settings, targetUnit: 'vw' };
+    const emSettings: ConversionSettings = { ...settings, targetUnit: 'em' };
+    const percentSettings: ConversionSettings = { ...settings, targetUnit: '%' };
+    const vwSettings: ConversionSettings = { ...settings, targetUnit: 'vw' };
 
     expect(convertCSSValue('16', emSettings)).toBe('1.00em');
     expect(convertCSSValue('16', percentSettings)).toBe('100.00%');
