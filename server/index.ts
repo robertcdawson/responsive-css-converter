@@ -7,8 +7,23 @@ import { JSDOM } from 'jsdom';
 const app = express();
 const port = process.env.PORT || 3001;
 
-app.use(cors());
+// Configure CORS to allow requests from any origin in development
+// and from specific origins in production
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production'
+    ? ['https://responsive-css-converter.vercel.app', 'https://responsive-css-converter-git-main-robertdawsons-projects.vercel.app']
+    : true,
+  methods: ['GET', 'POST'],
+  credentials: true
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
+
+// Add a simple health check endpoint
+app.get('/api/health', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok' });
+});
 
 interface ExtractCSSRequest {
   url: string;
